@@ -411,7 +411,7 @@ function studentForm(id){
     <button class="btn btn-block" id="f-save">Зберегти</button>`);
   $('#f-save').onclick=()=>{
     const name=$('#f-name').value.trim(); if(!name)return toast("Вкажіть ім'я");
-    const data={name, price:Number($('#f-price').value)||0, notes:$('#f-notes'].value.trim()};
+    const data={name, price:Number($('#f-price').value)||0, notes:$('#f-notes').value.trim()};
     if(s)Object.assign(s,data);
     else students.push({id:Date.now(),...data,color:PALETTE[students.length%PALETTE.length]});
     save(); closeSheet(); render(); toast('Збережено');
