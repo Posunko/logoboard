@@ -95,7 +95,7 @@ button{cursor:pointer;border:0;background:none}
 .card-h .sub{font-size:12px;color:var(--tx3);margin-left:auto}
 .view{display:none}
 .view.on{display:block}
-.sched{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sched{display:grid;grid-template-columns:1fr;gap:10px}
 .cal-nav{display:flex;align-items:center;gap:4px;margin-bottom:6px}
 .cal-nav .m{flex:1;text-align:center;font-weight:600}
 .arw{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:var(--tx2)}
@@ -110,7 +110,7 @@ button{cursor:pointer;border:0;background:none}
 .cal-month{position:relative}
 .cal-add{position:absolute;right:14px;bottom:14px;width:46px;height:46px;border-radius:50%;background:#1a73e8;color:#fff;border:none;display:grid;place-items:center;z-index:3}
 .week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-.week-col{background:var(--surf2);border-radius:10px;padding:8px;min-height:260px}
+.week-col{background:var(--surf2);border-radius:10px;padding:8px;min-height:260px;cursor:pointer}
 .week-col h3{font-size:11px;font-weight:600;margin-bottom:6px;text-align:center;color:var(--tx2)}
 .list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto}
 .lsn{display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:11px;background:var(--surf2)}
@@ -167,13 +167,13 @@ textarea.inp{resize:vertical;min-height:64px}
 
   <section class="view" id="v-students">
     <div class="card">
-      <div class="card-h"><h2>Клієнти</h2><button class="btn btn-sm" style="margin-left:auto" data-open="student">＋ Додати клієнта</button></div>
+      <div class="card-h"><h2>Клієнти</h2><button class="btn btn-sm" style="margin-left:auto" data-action="add-student">＋ Додати клієнта</button></div>
       <div class="s-grid" id="s-grid"></div>
     </div>
   </section>
 
   <section class="view on" id="v-schedule">
-    <div class="sched" id="sched" style="grid-template-columns:1fr">
+    <div class="sched" id="sched">
       <div class="card cal-month" id="month-card">
         <div class="card-h"><h2>Календар</h2><span class="sub" id="cal-count"></span></div>
         <div class="cal-nav">
@@ -183,7 +183,7 @@ textarea.inp{resize:vertical;min-height:64px}
         </div>
         <div class="dow"><div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Нд</div></div>
         <div class="grid" id="grid"></div>
-        <button class="cal-add" data-open="lesson">＋</button>
+        <button class="cal-add" data-action="add-lesson">＋</button>
       </div>
 
       <div class="card" id="week-card" style="display:none">
@@ -194,7 +194,7 @@ textarea.inp{resize:vertical;min-height:64px}
       <div class="card" style="margin-top:14px">
         <div class="card-h"><h2 id="day-t">Заняття</h2><span class="sub" id="day-s"></span></div>
         <div class="list" id="day-list"></div>
-        <button class="btn btn-soft btn-block btn-sm" data-open="lesson" style="margin-top:14px">＋ Додати заняття на цей день</button>
+        <button class="btn btn-soft btn-block btn-sm" data-action="add-lesson" style="margin-top:14px">＋ Додати заняття на цей день</button>
       </div>
     </div>
   </section>
@@ -290,10 +290,12 @@ function renderCalendar(){
 
 function renderWeek(){
   const curr=new Date(picked);
-  const firstDayOfWeek=curr.getDate()-curr.getDay()+1;
+  const dayOfWeek=curr.getDay();
+  const firstDayOfWeek=curr.getDate()-dayOfWeek+(dayOfWeek===0?-6:1);
   let h='';
   for(let i=0;i<7;i++){
-    const dayDate=new Date(curr.setDate(firstDayOfWeek+i));
+    const dayDate=new Date(curr);
+    dayDate.setDate(firstDayOfWeek+i);
     const ds=iso(dayDate);
     const dayLessons=onDay(ds);
     const isToday=ds===TODAY;
@@ -379,7 +381,7 @@ function studentForm(id){
     <button class="btn btn-block" id="f-save">Зберегти</button>`);
   $('#f-save').onclick=()=>{
     const name=$('#f-name').value.trim(); if(!name)return alert("Вкажіть ім'я");
-    const data={name, price:Number($('#f-price').value)||0, notes:$('#f-notes').value.trim()};
+    const data={name, price:Number($('#f-price').value)||0, notes:$('#f-notes'].value.trim()};
     if(s)Object.assign(s,data);
     else students.push({id:Date.now(),...data,color:PALETTE[students.length%PALETTE.length]});
     save(); closeSheet(); render();
@@ -421,7 +423,7 @@ function lessonForm(){
     const t=$('#l-t').value;
     const sid=Number($('#l-s').value);
     
-    // Суворе блокування дублювання часу для будь-кого
+    // Суворе блокування дублювання часу
     const timeConflict=lessons.find(l=>l.date===d&&l.time===t);
     if(timeConflict){
       alert(`Увага! На цей час (${t}) вже записаний інший клієнт. Виберіть вільну годину.`);
@@ -437,9 +439,17 @@ document.addEventListener('click',e=>{
   const t=e.target;
   if(t.closest('.tab'))return switchTab(t.closest('.tab').dataset.tab);
   if(t.closest('[data-goto]'))return switchTab(t.closest('[data-goto]').dataset.goto);
+  
+  const act=t.closest('[data-action]');
+  if(act){
+    const a=act.dataset.action;
+    if(a==='add-student')studentForm();
+    if(a==='add-lesson')lessonForm();
+    return;
+  }
+
   if(t.closest('.day[data-date]')){picked=t.closest('.day[data-date]').dataset.date;renderDay();if(calMode==='month')renderCalendar();}
   if(t.closest('.week-col[data-date]')){picked=t.closest('.week-col[data-date]').dataset.date;renderDay();renderWeek();}
-  if(t.closest('[data-open]'))return t.closest('[data-open]').dataset.open==='student'?studentForm():lessonForm();
   if(t.closest('[data-toggle]')){const l=lessons.find(x=>x.id==t.dataset.toggle);if(l){l.paid=!l.paid;save();render();}}
   if(t.closest('[data-pay]')){const l=lessons.find(x=>x.id==t.dataset.pay);if(l){l.paid=true;save();render();}}
   if(t.closest('[data-del]')){const id=Number(t.dataset.del);lessons=lessons.filter(x=>x.id!==id);save();render();}
