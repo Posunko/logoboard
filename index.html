@@ -26,6 +26,17 @@ const auth=getAuth(app);
 const db=getFirestore(app);
 let _uid=null,_saveTimer=null;
 
+// Безпечна ініціалізація глобального об'єкта одразу
+window._tb = {
+  students: JSON.parse(localStorage.getItem('tb_students') || '[]'),
+  lessons: JSON.parse(localStorage.getItem('tb_lessons') || '[]'),
+  afterLoad() {
+    students = window._tb.students;
+    lessons = window._tb.lessons;
+    render();
+  }
+};
+
 function fbDoc(name){return doc(db,'users',_uid,'data',name);}
 async function fbLoad(){
   try{
@@ -224,9 +235,8 @@ const $=s=>document.querySelector(s);
 const money=n=>n.toLocaleString('uk-UA')+' грн';
 const fmtDate=s=>{const[y,m,d]=s.split('-').map(Number);return `${d} ${MONTHS[m-1]}`;};
 
-const load=(k,f)=>{try{const v=JSON.parse(localStorage.getItem(k));return Array.isArray(v)?v:f;}catch{return f;}};
-let students=load('tb_students',[]);
-let lessons=load('tb_lessons',[]);
+let students=window._tb.students;
+let lessons=window._tb.lessons;
 
 function save(){
   try{
@@ -235,14 +245,6 @@ function save(){
   }catch{}
   window._fbAuth?.save(students,lessons);
 }
-
-window._tb={
-  students,lessons,
-  afterLoad(){
-    students=window._tb.students; lessons=window._tb.lessons;
-    save(); render();
-  }
-};
 
 let tab='schedule';
 let calMode='month';
@@ -381,7 +383,7 @@ function studentForm(id){
     <button class="btn btn-block" id="f-save">Зберегти</button>`);
   $('#f-save').onclick=()=>{
     const name=$('#f-name').value.trim(); if(!name)return alert("Вкажіть ім'я");
-    const data={name, price:Number($('#f-price').value)||0, notes:$('#f-notes'].value.trim()};
+    const data={name, price:Number($('#f-price').value)||0, notes:$('#f-notes').value.trim()};
     if(s)Object.assign(s,data);
     else students.push({id:Date.now(),...data,color:PALETTE[students.length%PALETTE.length]});
     save(); closeSheet(); render();
@@ -429,7 +431,7 @@ function lessonForm(){
       return;
     }
 
-    lessons.push({id:Date.now(), studentId:sid, date:d, time:t, topic:$('#l-top'].value.trim(), paid:false});
+    lessons.push({id:Date.now(), studentId:sid, date:d, time:t, topic:$('#l-top').value.trim(), paid:false});
     save(); closeSheet(); render();
   };
 }
