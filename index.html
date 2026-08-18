@@ -122,7 +122,6 @@ button{cursor:pointer;border:0;background:none}
 .btn-da{background:var(--da);color:#fff}
 .btn-ok{background:var(--ok);color:#fff}
 .btn-sm{padding:7px 12px;font-size:12.5px;border-radius:9px}
-.btn-ico{width:38px;height:38px;padding:0;border-radius:11px;background:var(--surf);border:1px solid var(--line);color:var(--tx2)}
 .btn-block{width:100%}
 
 .tabbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;position:sticky;top:0;z-index:90;padding:12px 0;background:var(--bg)}
@@ -131,8 +130,7 @@ button{cursor:pointer;border:0;background:none}
 .tab{padding:7px 17px;border-radius:9px;font-weight:500;font-size:13px;color:var(--tx2)}
 .tab.on{color:var(--ac);background:var(--acs)}
 .cal-switch{display:flex;gap:3px;padding:4px;background:var(--surf);border:1px solid var(--line);border-radius:13px}
-.cal-switch.hide{display:none}
-.cal-seg{padding:7px 17px;border-radius:9px;font-weight:500;font-size:13px;color:var(--tx2)}
+.cal-seg{padding:7px 17px;border-radius:9px;font-weight:500;font-size:13px;color:var(--tx2);cursor:pointer}
 .cal-seg.on{background:var(--acs);color:var(--ac)}
 
 .card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh1)}
@@ -150,10 +148,10 @@ button{cursor:pointer;border:0;background:none}
 .sched{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cal-nav{display:flex;align-items:center;gap:4px;margin-bottom:6px}
 .cal-nav .m{flex:1;text-align:center;font-weight:600}
-.arw{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:var(--tx2)}
+.arw{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:var(--tx2);cursor:pointer}
 .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px;text-align:center;font-size:10px;color:var(--tx3);text-transform:uppercase}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.day{aspect-ratio:1;border-radius:9px;display:grid;place-items:center;font-size:13px}
+.day{aspect-ratio:1;border-radius:9px;display:grid;place-items:center;font-size:13px;cursor:pointer}
 .day:hover{background:var(--surf2)}
 .day.pad{opacity:.3;pointer-events:none}
 .day.has{background:var(--acs);color:var(--ac);font-weight:600}
@@ -162,13 +160,19 @@ button{cursor:pointer;border:0;background:none}
 .cal-month{position:relative}
 .cal-add{position:absolute;right:14px;bottom:14px;width:46px;height:46px;border-radius:50%;background:#1a73e8;color:#fff;border:none;cursor:pointer;display:grid;place-items:center;z-index:3}
 
+/* Тижнева сітка */
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.week-col{background:var(--surf2);border-radius:12px;padding:10px;min-height:300px}
+.week-col h3{font-size:12px;font-weight:600;margin-bottom:8px;text-align:center;color:var(--tx2)}
+.week-col.today-col{background:var(--acs);border:1px solid var(--ac)}
+
 .list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto}
 .lsn{display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:11px;background:var(--surf2)}
 .lsn .t{font-size:12px;font-weight:500;color:var(--tx2);min-width:38px}
 .lsn .b{flex:1;min-width:0}
 .lsn .b strong{display:block;font-size:13px;font-weight:500}
 .lsn .b em{font-style:normal;font-size:11px;color:var(--tx3)}
-.chip{font-size:10.5px;padding:4px 9px;border-radius:20px}
+.chip{font-size:10.5px;padding:4px 9px;border-radius:20px;cursor:pointer}
 .chip-ok{background:var(--oks);color:var(--ok)}
 .chip-n{background:var(--surf3);color:var(--tx2)}
 .x{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--tx3);cursor:pointer}
@@ -180,9 +184,6 @@ button{cursor:pointer;border:0;background:none}
 .s-top .nm{flex:1}
 .s-top .nm b{display:block;font-size:14px}
 .s-top .nm span{font-size:12px;color:var(--tx2)}
-.meter{height:5px;background:var(--surf3);border-radius:9px;overflow:hidden;margin-top:10px}
-.meter i{display:block;height:100%}
-.s-foot{display:flex;justify-content:space-between;margin-top:6px;font-size:11.5px;color:var(--tx3)}
 
 .av{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:600;font-size:13px;flex-shrink:0;position:relative;overflow:hidden}
 .av-sm{width:31px;height:31px;font-size:11px}
@@ -220,7 +221,7 @@ textarea.inp{resize:vertical;min-height:64px}
       <button class="tab on" data-tab="schedule">Розклад</button>
       <button class="tab" data-tab="payments">Оплати</button>
     </div>
-    <div class="cal-switch" id="cal-switch">
+    <div class="cal-switch">
       <button class="cal-seg on" id="view-month">Місяць</button>
       <button class="cal-seg" id="view-week">Тиждень</button>
     </div>
@@ -234,8 +235,8 @@ textarea.inp{resize:vertical;min-height:64px}
   </section>
 
   <section class="view on" id="v-schedule">
-    <div class="sched" id="sched">
-      <div class="card cal-month">
+    <div class="sched" id="sched" style="grid-template-columns:1fr">
+      <div class="card cal-month" id="month-card">
         <div class="card-h"><h2>Календар</h2><span class="sub" id="cal-count"></span></div>
         <div class="cal-nav">
           <button class="arw" id="prev">‹</button>
@@ -246,10 +247,16 @@ textarea.inp{resize:vertical;min-height:64px}
         <div class="grid" id="grid"></div>
         <button class="cal-add" data-open="lesson">＋</button>
       </div>
-      <div class="card">
+
+      <div class="card" id="week-card" style="display:none">
+        <div class="card-h"><h2>Розклад на тиждень</h2></div>
+        <div class="week-grid" id="week-grid"></div>
+      </div>
+
+      <div class="card" id="day-card" style="margin-top:14px">
         <div class="card-h"><h2 id="day-t">Заняття</h2><span class="sub" id="day-s"></span></div>
         <div class="list" id="day-list"></div>
-        <button class="btn btn-soft btn-block btn-sm" id="add-here" style="margin-top:14px">＋ Додати заняття на цей день</button>
+        <button class="btn btn-soft btn-block btn-sm" data-open="lesson" style="margin-top:14px">＋ Додати заняття на цей день</button>
       </div>
     </div>
   </section>
@@ -303,11 +310,11 @@ window._tb={
 };
 
 let tab='schedule';
+let calMode='month';
 let cursor=new Date();
 let picked=TODAY;
 
 const getS=id=>students.find(s=>s.id===id);
-const lessonsOf=id=>lessons.filter(l=>l.studentId===id);
 const onDay=d=>lessons.filter(l=>l.date===d).sort((a,b)=>a.time.localeCompare(b.time));
 const initials=n=>n.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?';
 const avatar=(s,cls='')=>`<span class="av ${cls}" data-student-av="${s.id}" style="background:${s.color}">${esc(initials(s.name))}</span>`;
@@ -351,6 +358,26 @@ function renderCalendar(){
   $('#grid').innerHTML=h;
 }
 
+function renderWeek(){
+  const curr=new Date(picked);
+  const firstDayOfWeek=curr.getDate()-curr.getDay()+1;
+  let h='';
+  for(let i=0;i<7;i++){
+    const dayDate=new Date(curr.setDate(firstDayOfWeek+i));
+    const ds=iso(dayDate);
+    const dayLessons=onDay(ds);
+    const isToday=ds===TODAY;
+    const isSel=ds===picked;
+    h+=`<div class="week-col ${isToday?'today-col':''}" style="${isSel?'border:2px solid var(--ac)':''}" data-date="${ds}">
+      <h3>${['Пн','Вт','Ср','Чт','Пт','Сб','Нд'][i]}<br>${dayDate.getDate()}</h3>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${dayLessons.map(l=>{const s=getS(l.studentId);return `<div style="background:var(--surf);padding:6px;border-radius:8px;font-size:11px"><b>${esc(l.time)}</b> ${esc(s?.name||'')}</div>`;}).join('')}
+      </div>
+    </div>`;
+  }
+  $('#week-grid').innerHTML=h;
+}
+
 function renderDay(){
   const items=onDay(picked);
   $('#day-t').textContent=picked===TODAY?'Сьогодні':fmtDate(picked);
@@ -386,7 +413,18 @@ function renderPayments(){
 function render(){
   renderStats();
   if(tab==='students')renderStudents();
-  if(tab==='schedule'){renderCalendar();renderDay();}
+  if(tab==='schedule'){
+    if(calMode==='month'){
+      $('#month-card').style.display='block';
+      $('#week-card').style.display='none';
+      renderCalendar();
+    }else{
+      $('#month-card').style.display='none';
+      $('#week-card').style.display='block';
+      renderWeek();
+    }
+    renderDay();
+  }
   if(tab==='payments')renderPayments();
 }
 
@@ -411,7 +449,7 @@ function studentForm(id){
     <button class="btn btn-block" id="f-save">Зберегти</button>`);
   $('#f-save').onclick=()=>{
     const name=$('#f-name').value.trim(); if(!name)return toast("Вкажіть ім'я");
-    const data={name, price:Number($('#f-price').value)||0, notes:$('#f-notes').value.trim()};
+    const data={name, price:Number($('#f-price').value)||0, notes:$('#f-notes'].value.trim()};
     if(s)Object.assign(s,data);
     else students.push({id:Date.now(),...data,color:PALETTE[students.length%PALETTE.length]});
     save(); closeSheet(); render(); toast('Збережено');
@@ -449,7 +487,15 @@ function lessonForm(){
     <label class="field"><span>Тема</span><input class="inp" id="l-top" placeholder="Постановка звука"></label>
     <button class="btn btn-block" id="l-save">Додати</button>`);
   $('#l-save').onclick=()=>{
-    lessons.push({id:Date.now(), studentId:Number($('#l-s').value), date:$('#l-d').value, time:$('#l-t').value, topic:$('#l-top').value.trim(), paid:false});
+    const d=$('#l-d').value;
+    const t=$('#l-t').value;
+    const existing=lessons.find(l=>l.date===d&&l.time===t);
+    if(existing){
+      const busyStudent=getS(existing.studentId);
+      alert(`Увага! На цей час (${t}) вже записаний клієнт: ${busyStudent?.name || 'хтось інший'}. Виберіть інший час.`);
+      return;
+    }
+    lessons.push({id:Date.now(), studentId:Number($('#l-s').value), date:d, time:t, topic:$('#l-top').value.trim(), paid:false});
     save(); closeSheet(); render(); toast('Заняття додано');
   };
 }
@@ -458,7 +504,8 @@ document.addEventListener('click',e=>{
   const t=e.target;
   if(t.closest('.tab'))return switchTab(t.closest('.tab').dataset.tab);
   if(t.closest('[data-goto]'))return switchTab(t.closest('[data-goto]').dataset.goto);
-  if(t.closest('.day[data-date]')){picked=t.closest('.day[data-date]').dataset.date;renderDay();renderCalendar();}
+  if(t.closest('.day[data-date]')){picked=t.closest('.day[data-date]').dataset.date;renderDay();if(calMode==='month')renderCalendar();}
+  if(t.closest('.week-col[data-date]')){picked=t.closest('.week-col[data-date]').dataset.date;renderDay();renderWeek();}
   if(t.closest('[data-open]'))return t.closest('[data-open]').dataset.open==='student'?studentForm():lessonForm();
   if(t.closest('[data-toggle]')){const l=lessons.find(x=>x.id==t.dataset.toggle);if(l){l.paid=!l.paid;save();render();}}
   if(t.closest('[data-pay]')){const l=lessons.find(x=>x.id==t.dataset.pay);if(l){l.paid=true;save();render();}}
@@ -471,6 +518,12 @@ document.addEventListener('click',e=>{
   }
   if(t.closest('[data-close]')||t.classList.contains('ov'))return closeSheet();
 });
+
+$('#view-month').onclick=()=>{calMode='month';$('#view-month').classList.add('on');$('#view-week').classList.remove('on');render();};
+$('#view-week').onclick=()=>{calMode='week';$('#view-week').classList.add('on');$('#view-month').classList.remove('on');render();};
+
+$('#prev').onclick=()=>{if(calMode==='month'){cursor.setMonth(cursor.getMonth()-1);renderCalendar();}else{const d=new Date(picked);d.setDate(d.getDate()-7);picked=iso(d);renderWeek();renderDay();}};
+$('#next').onclick=()=>{if(calMode==='month'){cursor.setMonth(cursor.getMonth()+1);renderCalendar();}else{const d=new Date(picked);d.setDate(d.getDate()+7);picked=iso(d);renderWeek();renderDay();}};
 
 switchTab('schedule');
 </script>
