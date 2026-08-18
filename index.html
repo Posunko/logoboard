@@ -14,13 +14,21 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import{getAuth,GoogleAuthProvider,signInWithRedirect,getRedirectResult,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import{getFirestore,doc,getDoc,setDoc}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-const firebaseConfig={apiKey:"AIzaSyCmUz8VxefFAIa5SB3WlRHnSZsq1C73uAg",authDomain:"tutorboard-7af36.firebaseapp.com",projectId:"tutorboard-7af36",storageBucket:"tutorboard-7af36.firebasestorage.app",messagingSenderId:"265766743873",appId:"1:265766743873:web:beaadce351813465ff3bc0"};
+
+const firebaseConfig={
+  apiKey: "AIzaSyCIrnjv7UuBiqiH47CEOuQnazf_-3459tU",
+  authDomain: "logoboard-pro.firebaseapp.com",
+  projectId: "logoboard-pro",
+  storageBucket: "logoboard-pro.firebasestorage.app",
+  messagingSenderId: "233357793616",
+  appId: "1:233357793616:web:002e240de2f598c546f455"
+};
+
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
 let _uid=null,_saveTimer=null,_syncing=false;
 
-// Обробка результату після перенаправлення Google
 getRedirectResult(auth).catch(e=>console.error('Redirect error',e));
 
 function fbDoc(name){return doc(db,'users',_uid,'data',name);}
