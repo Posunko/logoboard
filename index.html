@@ -13,53 +13,36 @@
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import{getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import{getFirestore,doc,getDoc,setDoc,onSnapshot}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import{getFirestore,doc,getDoc,setDoc}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 const firebaseConfig={apiKey:"AIzaSyCmUz8VxefFAIa5SB3WlRHnSZsq1C73uAg",authDomain:"tutorboard-7af36.firebaseapp.com",projectId:"tutorboard-7af36",storageBucket:"tutorboard-7af36.firebasestorage.app",messagingSenderId:"265766743873",appId:"1:265766743873:web:beaadce351813465ff3bc0"};
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
-let _uid=null,_unsubscribe=null,_saveTimer=null,_syncing=false;
+let _uid=null,_saveTimer=null,_syncing=false;
 function fbDoc(name){return doc(db,'users',_uid,'data',name);}
 async function fbLoad(){
   try{
-    const[sSnap,lSnap,srSnap,stSnap]=await Promise.all([getDoc(fbDoc('students')),getDoc(fbDoc('lessons')),getDoc(fbDoc('series')),getDoc(fbDoc('settings'))]);
+    const[sSnap,lSnap,srSnap]=await Promise.all([getDoc(fbDoc('students')),getDoc(fbDoc('lessons')),getDoc(fbDoc('series'))]);
     if(sSnap.exists()){window._tb.students=sSnap.data().v||[];}
     if(lSnap.exists()){window._tb.lessons=lSnap.data().v||[];}
     if(srSnap.exists()){window._tb.series=srSnap.data().v||[];}
-    if(stSnap.exists())window._tb.applySettings(stSnap.data().v||null);
     window._tb.afterLoad();
   }catch(e){console.error('fbLoad',e);}
 }
-function collectSettings(){
-  return {
-    theme:localStorage.getItem('tb_theme')||'light',
-    fhOverrides:localStorage.getItem('tb_fh_overrides')||'{}',
-    calView:localStorage.getItem('tb_calview')||'month'
-  };
-}
 function fbSave(students,lessons,series){
   if(!_uid)return;
-  if(!_syncing){_syncing=true;window._tb?.syncStart();}
+  if(!_syncing){_syncing=true;}
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(async()=>{
     try{
       await Promise.all([
         setDoc(fbDoc('students'),{v:students}),
         setDoc(fbDoc('lessons'),{v:lessons}),
-        setDoc(fbDoc('series'),{v:series}),
-        setDoc(fbDoc('settings'),{v:collectSettings()})
+        setDoc(fbDoc('series'),{v:series})
       ]);
     }catch(e){console.error('fbSave',e);}
     _syncing=false;
-    window._tb?.syncEnd();
   },800);
-}
-function fbSaveSettings(){
-  if(!_uid)return;
-  window._tb?.syncStart();
-  setDoc(fbDoc('settings'),{v:collectSettings()})
-    .catch(e=>console.error('fbSaveSettings',e))
-    .finally(()=>window._tb?.syncEnd());
 }
 onAuthStateChanged(auth,user=>{
   _uid=user?user.uid:null;
@@ -67,9 +50,7 @@ onAuthStateChanged(auth,user=>{
   if(user){
     if(av){
       av.innerHTML=user.photoURL?`<img src="${user.photoURL}" alt="" onerror="this.remove()">`:(user.displayName||'?')[0].toUpperCase();
-      av.style.background='var(--ac)';
-      av.title=user.displayName||user.email||'';
-      av.dataset.auth='out';
+      av.style.background='var(--ac)'; av.title=user.displayName||user.email||''; av.dataset.auth='out';
     }
     fbLoad();
   }else{
@@ -80,8 +61,7 @@ onAuthStateChanged(auth,user=>{
 window._fbAuth={
   login:()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>console.error(e)),
   logout:()=>signOut(auth),
-  save:fbSave,
-  saveSettings:fbSaveSettings
+  save:fbSave
 };
 </script>
 <style>
@@ -109,646 +89,245 @@ window._fbAuth={
   --sh2:0 6px 22px -6px rgba(0,0,0,.6);
   --sh3:0 28px 64px -16px rgba(0,0,0,.8);
 }
-html{-webkit-text-size-adjust:100%}
 body{
   font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx);
   min-height:100vh;padding:18px 20px 60px;font-size:14px;line-height:1.5;
-  -webkit-font-smoothing:antialiased;transition:background .35s,color .35s;
   display:flex;flex-direction:column;
 }
-body::before{
-  content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.55;
-  background:
-    radial-gradient(760px 380px at 12% -8%,color-mix(in srgb,var(--ac) 16%,transparent),transparent 70%),
-    radial-gradient(680px 340px at 92% 4%,color-mix(in srgb,var(--ok) 12%,transparent),transparent 70%);
-}
 .wrap{max-width:1060px;margin:0 auto;width:100%;flex:1;display:flex;flex-direction:column}
-.wrap>.view,.wrap>.tabbar,.wrap>header{flex-shrink:0}
-.wrap>.stats{margin-top:16px}
 button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none}
-:focus-visible{outline:2px solid var(--ac);outline-offset:2px;border-radius:8px}
-.scr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-/* ---------- auth ---------- */
 #auth-av{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:13px;font-weight:600;color:#fff;overflow:hidden;position:relative;background:var(--surf3);border:1px solid var(--line);box-shadow:var(--sh1);cursor:pointer;flex-shrink:0}
 #auth-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
-#auth-av.syncing{overflow:visible}
-#auth-av.syncing::before{content:'';position:absolute;inset:-4px;border-radius:14px;border:2px dashed color-mix(in srgb,var(--ac) 65%,transparent);animation:spin 1.1s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-/* ---------- header ---------- */
 .top-brand{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.mark{width:38px;height:38px;border-radius:11px;overflow:hidden;display:grid;place-items:center;flex-shrink:0;
-  background:linear-gradient(140deg,var(--ac),color-mix(in srgb,var(--ac) 45%,#0ea5e9));
-  color:#fff;font-weight:600;font-size:15px;letter-spacing:-.5px;box-shadow:var(--sh1)}
-.mark svg{width:22px;height:22px}
-.brand h1{font-size:16px;font-weight:600;letter-spacing:-.3px;line-height:1.15}
-.brand p{color:var(--tx2);font-size:11.5px;margin-top:0}
+.mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--ac);color:#fff;font-weight:600}
+.brand h1{font-size:16px;font-weight:600}
+.brand p{color:var(--tx2);font-size:11.5px}
 .top-act-top{display:flex;gap:4px;align-items:center;flex-shrink:0}
-.top-act-top .btn-sm{height:38px;padding:0 12px;border-radius:11px}
-.top-act-top .btn-ico,
-.top-act-top #auth-av{transition:transform .16s,box-shadow .2s,background .2s,border-color .2s}
-.top-act-top .btn-ico:hover,
-.top-act-top #auth-av:hover{transform:translateY(-1.5px);box-shadow:var(--sh2)}
-.top-act-top .btn-ico:active,
-.top-act-top #auth-av:active{transform:translateY(0) scale(.985)}
 
-/* ---------- buttons ---------- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:10px 16px;border-radius:var(--r3);
-  font-weight:500;font-size:13.5px;background:var(--ac);color:#fff;white-space:nowrap;
-  transition:transform .16s,box-shadow .2s,background .2s,border-color .2s,opacity .2s;box-shadow:var(--sh1)}
-.btn:hover{transform:translateY(-1.5px);box-shadow:var(--sh2)}
-.btn:active{transform:translateY(0) scale(.985)}
+  font-weight:500;font-size:13.5px;background:var(--ac);color:#fff;white-space:nowrap;box-shadow:var(--sh1)}
 .btn-soft{background:var(--surf);color:var(--tx);border:1px solid var(--line)}
-.btn-soft:hover{border-color:var(--line2);background:var(--surf2)}
-.btn-ok{background:var(--ok)}
-.btn-da{background:var(--da)}
-.btn-line-da{background:transparent;color:var(--da);border:1px solid color-mix(in srgb,var(--da) 34%,transparent)}
-.btn-line-da:hover{background:var(--das)}
+.btn-da{background:var(--da);color:#fff}
+.btn-ok{background:var(--ok);color:#fff}
 .btn-sm{padding:7px 12px;font-size:12.5px;border-radius:9px}
 .btn-ico{width:38px;height:38px;padding:0;border-radius:11px;background:var(--surf);border:1px solid var(--line);color:var(--tx2)}
-.btn-ico:hover{color:var(--tx);border-color:var(--line2)}
 .btn-block{width:100%}
 
-/* ---------- tabs ---------- */
-.tabbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;
-  position:sticky;top:0;z-index:90;padding:12px 0;
-  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.tabbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;position:sticky;top:0;z-index:90;padding:12px 0;background:var(--bg)}
 .tabbar .cal-switch{margin-left:auto}
-.tabbar .tabs{margin-left:0}
-.tabs{position:relative;display:inline-flex;gap:3px;padding:4px;background:var(--surf);
-  border:1px solid var(--line);border-radius:13px;box-shadow:var(--sh1)}
-.tab{position:relative;z-index:1;padding:7px 17px;border-radius:9px;font-weight:500;font-size:13px;
-  color:var(--tx2);transition:color .28s}
-.tab:hover{color:var(--tx)}
-.tab.on{color:var(--ac)}
-.pill{position:absolute;left:0;top:4px;height:calc(100% - 8px);width:0;background:var(--acs);
-  border-radius:9px;z-index:0;transition:transform .42s cubic-bezier(.34,1.32,.44,1),width .42s cubic-bezier(.34,1.32,.44,1),background .35s}
-/* ---------- calendar view switch ---------- */
-.cal-switch{display:flex;width:max-content;max-width:100%;gap:3px;padding:4px;
-  background:var(--surf);border:1px solid var(--line);border-radius:13px;box-shadow:var(--sh1)}
+.tabs{display:inline-flex;gap:3px;padding:4px;background:var(--surf);border:1px solid var(--line);border-radius:13px}
+.tab{padding:7px 17px;border-radius:9px;font-weight:500;font-size:13px;color:var(--tx2)}
+.tab.on{color:var(--ac);background:var(--acs)}
+.cal-switch{display:flex;gap:3px;padding:4px;background:var(--surf);border:1px solid var(--line);border-radius:13px}
 .cal-switch.hide{display:none}
-.cal-seg{display:inline-flex;align-items:center;gap:5px;padding:7px 17px;border-radius:9px;
-  font-weight:500;font-size:13px;color:var(--tx2);transition:color .2s,background .2s}
-.cal-seg:hover{color:var(--tx)}
+.cal-seg{padding:7px 17px;border-radius:9px;font-weight:500;font-size:13px;color:var(--tx2)}
 .cal-seg.on{background:var(--acs);color:var(--ac)}
-/* ---------- cards ---------- */
-.card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh1);
-  transition:box-shadow .25s,border-color .25s,transform .25s}
+
+.card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--sh1)}
 .card-h{display:flex;align-items:center;gap:4px;margin-bottom:10px}
-.card-h h2{font-size:15px;font-weight:600;letter-spacing:-.1px}
-.card-h .sub{font-size:12px;color:var(--tx3);margin-left:auto;font-weight:400}
+.card-h h2{font-size:15px;font-weight:600}
+.card-h .sub{font-size:12px;color:var(--tx3);margin-left:auto}
 
-/* ---------- stats ---------- */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
-.stat{background:var(--surf);border:1px solid var(--line);border-radius:var(--r2);padding:10px 14px;
-  box-shadow:var(--sh1);position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s,border-color .25s;
-  width:100%;text-align:left;font:inherit;color:inherit;display:block}
-.stat:hover{transform:translateY(-2px);box-shadow:var(--sh2);border-color:var(--line2)}
-button.stat{cursor:pointer}
-button.stat:active{transform:translateY(0) scale(.99)}
-button.stat .go{position:absolute;top:11px;right:12px;font-size:13px;color:var(--tx2);opacity:0;transform:translateX(-4px);transition:opacity .25s,transform .25s}
-button.stat:hover .go,button.stat:focus-visible .go{opacity:.7;transform:translateX(0)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}
+.stat{background:var(--surf);border:1px solid var(--line);border-radius:var(--r2);padding:14px;text-align:left;display:block;width:100%;cursor:pointer}
+.stat b{display:block;font-size:22px;font-weight:600}
+.stat span{font-size:11.5px;color:var(--tx2)}
 
-.stat b{display:block;font-size:23px;line-height:1.1;font-weight:600;letter-spacing:-.7px;font-variant-numeric:tabular-nums}
-.stat span{display:block;font-size:11px;color:var(--tx2);margin-top:2px;font-weight:400}
-
-/* ---------- free-hours stat ---------- */
-.stat-free{display:flex;flex-direction:column;gap:0}
-.stat-free .sf-label{font-size:11.5px;color:var(--tx2);margin-bottom:7px;font-weight:400}
-.stat-free-days{display:flex;flex-direction:column;gap:3px}
-.sf-day{display:flex;align-items:center;gap:6px}
-.sf-wd{font-size:10.5px;font-weight:600;color:var(--tx3);width:22px;flex-shrink:0;text-transform:uppercase;letter-spacing:.3px}
-.sf-slots{display:flex;gap:3px;flex-wrap:wrap;flex:1}
-.sf-slot{font-size:10px;font-weight:500;padding:2px 6px;border-radius:5px;background:var(--oks);color:var(--ok);white-space:nowrap}
-.sf-busy{font-size:10px;color:var(--tx3);font-style:italic}
-.sf-none{font-size:11.5px;color:var(--tx3);padding:4px 0}
-.fh-wrap{overflow-x:auto;margin:0 -4px;padding:0 4px}
-.fh-grid{display:grid;gap:2px;min-width:max-content}
-.fh-wd{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;
-  color:var(--tx3);display:flex;align-items:center;height:34px}
-.fh-wd.today-col{color:var(--ac)}
-.fh-time-head{font-size:11.5px;color:var(--tx3);font-variant-numeric:tabular-nums;
-  text-align:center;padding-bottom:4px}
-.fh-cell{width:40px;height:34px;border-radius:6px;cursor:pointer;transition:opacity .15s,transform .1s;border:none;padding:0;position:relative}
-.fh-cell:hover{opacity:.75;transform:scale(1.12)}
-.fh-cell:active{transform:scale(.95)}
-.fh-cell.free{background:color-mix(in srgb,var(--ok) 22%,transparent)}
-.fh-cell.busy{background:var(--surf3)}
-.fh-cell.manual::after{content:'';position:absolute;top:3px;right:3px;width:4px;height:4px;border-radius:50%;background:var(--ac)}
-.fh-wd.fh-wknd{color:var(--da);opacity:.7}
-.fh-legend{display:flex;gap:10px;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:11px;color:var(--tx2);flex-wrap:wrap}
-.fh-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
-@media(max-width:880px){.stat-next{grid-column:span 2}}
-.stat-next{display:flex;flex-direction:column;gap:0}
-.stat-next .stat-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.stat-next .stat-h b{font-size:11.5px;font-weight:500;color:var(--tx2)}
-.stat-next .stat-h span{font-size:11px;color:var(--tx3)}
-.stat-next-rows{display:flex;flex-direction:column;gap:2px}
-.stat-next-row{display:flex;align-items:center;gap:5px;padding:2px 0}
-.stat-next-row .sn-av{width:18px;height:18px;border-radius:5px;font-size:8px;font-weight:600;color:#fff;
-  display:grid;place-items:center;flex-shrink:0}
-.stat-next-row .sn-name{flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.stat-next-row .sn-sum{font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--da);flex-shrink:0}
-.stat-next-row.past .sn-sum{color:var(--da)}
-.stat-next-empty{font-size:11.5px;color:var(--tx3);padding:4px 0}
-
-/* ---------- views ---------- */
 .view{display:none}
-.view.on{display:block;animation:rise .4s cubic-bezier(.22,1,.36,1) both}
-@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-.sched{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px;align-items:stretch}
-.sched>.card{display:flex;flex-direction:column;padding:14px;min-width:0}
-.sched>.card>.list{flex:1}
-.sched:not(.week-mode) .cal-week{display:none}
-.sched.week-mode{grid-template-columns:1fr}
-.sched.week-mode .cal-month{display:none}
-
-/* ---------- calendar ---------- */
+.view.on{display:block}
+.sched{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cal-nav{display:flex;align-items:center;gap:4px;margin-bottom:6px}
-.cal-nav .m{flex:1;text-align:center;font-weight:600;font-size:14px;letter-spacing:-.1px}
-.cal-nav .m::first-letter{text-transform:uppercase}
-.arw{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:var(--tx2);
-  border:1px solid transparent;transition:.2s}
-.arw:hover{background:var(--surf2);color:var(--tx);border-color:var(--line)}
-.dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
-.dow div{text-align:center;font-size:10px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px}
+.cal-nav .m{flex:1;text-align:center;font-weight:600}
+.arw{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:var(--tx2)}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px;text-align:center;font-size:10px;color:var(--tx3);text-transform:uppercase}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.day{position:relative;aspect-ratio:1;min-height:32px;max-height:44px;border-radius:9px;display:grid;place-items:center;
-  font-size:13px;font-weight:400;font-variant-numeric:tabular-nums;color:var(--tx);
-  transition:background .15s,color .15s}
-.day:hover:not(.pad){background:var(--surf2)}
-.day.pad{color:var(--tx3);opacity:.32;pointer-events:none}
-.day.wknd{color:var(--tx2)}
+.day{aspect-ratio:1;border-radius:9px;display:grid;place-items:center;font-size:13px}
+.day:hover{background:var(--surf2)}
+.day.pad{opacity:.3;pointer-events:none}
 .day.has{background:var(--acs);color:var(--ac);font-weight:600}
 .day.today{box-shadow:inset 0 0 0 1.5px var(--ac)}
-.day.sel{background:var(--ac);color:#fff;font-weight:600;box-shadow:var(--sh2)}
-.day.sel:hover{background:var(--ac);color:#fff}
-.dots{position:absolute;bottom:4px;display:flex;gap:2.5px}
-.dot{width:3.5px;height:3.5px;border-radius:50%;background:currentColor;opacity:.9}
-.day.sel .dot{background:#fff}
-.cal-legend{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);
-  font-size:11px;color:var(--tx2);padding-right:56px}
-.cal-legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.day.sel{background:var(--ac);color:#fff;font-weight:600}
 .cal-month{position:relative}
-.cal-add{position:absolute;right:14px;bottom:14px;width:46px;height:46px;border-radius:50%;
-  background:#1a73e8;color:#fff;border:none;cursor:pointer;display:grid;place-items:center;
-  z-index:3;transition:transform .18s,background .2s}
-.cal-add:hover{transform:translateY(-2px) scale(1.05)}
-.cal-add:active{transform:scale(.94)}
-.cal-add svg{pointer-events:none}
-[data-theme=dark] .cal-add{background:#4285f4}
+.cal-add{position:absolute;right:14px;bottom:14px;width:46px;height:46px;border-radius:50%;background:#1a73e8;color:#fff;border:none;cursor:pointer;display:grid;place-items:center;z-index:3}
 
-/* ---------- lessons ---------- */
-.day-head{display:flex;align-items:baseline;gap:6px;margin-bottom:8px}
-.day-head b{font-size:14px;font-weight:600}
-.day-head span{font-size:11.5px;color:var(--tx3);font-weight:400}
-.list{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow-y:auto;padding-right:4px;margin-right:-4px}
-*{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
-*::-webkit-scrollbar{width:6px;height:6px}
-*::-webkit-scrollbar-track{background:transparent}
-*::-webkit-scrollbar-thumb{background:var(--line2);border:1.5px solid transparent;border-radius:6px;background-clip:padding-box;opacity:0;transition:opacity .3s}
-.scrolling::-webkit-scrollbar-thumb{opacity:1}
-*::-webkit-scrollbar-thumb:hover{background:var(--tx3);border:1.5px solid transparent;border-radius:6px;background-clip:padding-box;opacity:1}
-.lsn{display:flex;align-items:center;gap:8px;padding:7px 11px;border-radius:var(--r3);background:var(--surf2);
-  border:1px solid transparent;
-  transition:transform .2s,background .2s,border-color .2s;animation:rise .32s cubic-bezier(.22,1,.36,1) both}
-.lsn:hover{background:var(--surf3);transform:translateX(3px)}
-.lsn.done{opacity:.62}
-.lsn[data-lesson]{cursor:pointer}
-.lsn .nt{flex:none;font-size:12px;color:var(--tx3);cursor:help;opacity:.75}
-.lsn .t{font-size:12px;font-weight:500;color:var(--tx2);font-variant-numeric:tabular-nums;min-width:38px}
-.lsn .t[data-edit-time]{cursor:pointer}
-.lsn .t[data-edit-time]:hover{color:var(--ac);text-decoration:underline}
+.list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto}
+.lsn{display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:11px;background:var(--surf2)}
+.lsn .t{font-size:12px;font-weight:500;color:var(--tx2);min-width:38px}
 .lsn .b{flex:1;min-width:0}
-.lsn .b strong{display:block;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lsn .b strong[data-student]{cursor:pointer}
-.lsn .b strong[data-student]:hover{color:var(--ac)}
-.lsn .b em{display:block;font-style:normal;font-size:11px;color:var(--tx3);margin-top:1px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lsn .b em.n{font-style:italic;color:var(--wa);opacity:.85}
-.chip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:500;padding:4px 9px;border-radius:20px;
-  white-space:nowrap;letter-spacing:.1px}
+.lsn .b strong{display:block;font-size:13px;font-weight:500}
+.lsn .b em{font-style:normal;font-size:11px;color:var(--tx3)}
+.chip{font-size:10.5px;padding:4px 9px;border-radius:20px}
 .chip-ok{background:var(--oks);color:var(--ok)}
-.chip-da{background:var(--das);color:var(--da)}
-.chip-wa{background:var(--was);color:var(--wa)}
 .chip-n{background:var(--surf3);color:var(--tx2)}
-
-/* ---------- pay-day banner ---------- */
-#payday-banner{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
-#payday-banner:empty{display:none}
-.payday-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--r2);
-  background:color-mix(in srgb,var(--ok) 10%,var(--surf));
-  border:1px solid color-mix(in srgb,var(--ok) 35%,transparent);
-  box-shadow:var(--sh1);animation:rise .32s cubic-bezier(.22,1,.36,1) both}
-.payday-item .pd-ico{font-size:18px;flex-shrink:0;line-height:1}
-.payday-item .pd-txt{flex:1;min-width:0}
-.payday-item .pd-txt strong{display:block;font-size:13.5px;font-weight:600;color:var(--tx)}
-.payday-item .pd-txt em{font-style:normal;font-size:12px;color:var(--tx2)}
-.payday-item .pd-sum{font-size:14px;font-weight:700;color:var(--ok);white-space:nowrap;flex-shrink:0}
-.payday-item .btn-pay-now{padding:7px 13px;font-size:12px;border-radius:9px;background:var(--ok);
-  color:#fff;font-weight:600;flex-shrink:0;white-space:nowrap}
-
-.pay-badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
-  border-radius:50%;background:var(--ok);color:#fff;font-size:10px;font-weight:700;flex-shrink:0;
-  position:relative;cursor:default;line-height:1}
-.x{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--tx3);font-size:17px;
-  line-height:1;flex-shrink:0;transition:.18s}
+.x{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--tx3);cursor:pointer}
 .x:hover{background:var(--das);color:var(--da)}
 
-/* ---------- week strip ---------- */
-.week-card{margin-top:10px;padding:14px}
-.wk-top{display:flex;align-items:center;gap:4px;margin-bottom:8px}
-.wk-top b{font-size:14px;font-weight:600;letter-spacing:-.1px}
-.wk-range{font-size:12px;color:var(--tx3);font-weight:400}
-.wk-range::first-letter{text-transform:uppercase}
-.wk-nav{margin-left:auto;display:flex;gap:3px}
-.week{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.wk-col{background:var(--surf2);border:1px solid transparent;border-radius:11px;padding:6px 7px;min-height:92px;
-  display:flex;flex-direction:column;gap:4px;text-align:left;transition:background .16s,border-color .16s,box-shadow .16s}
-.wk-col:hover{background:var(--surf3)}
-.wk-col.wknd{background:transparent;border-color:var(--line)}
-.wk-col.today{box-shadow:inset 0 0 0 1.5px var(--ac)}
-.wk-col.sel{background:var(--acs);border-color:color-mix(in srgb,var(--ac) 38%,transparent)}
-.wk-h{display:flex;align-items:baseline;justify-content:space-between;gap:4px}
-.wk-wd{font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3)}
-.wk-d{font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--tx)}
-.wk-col.today .wk-d{color:var(--ac)}
-.wk-body{display:flex;flex-direction:column;gap:2px;flex:1}
-.wk-lsn{display:flex;align-items:center;gap:3px;padding:3px 6px;border-radius:7px;background:var(--acs);color:var(--ac);
-  font-size:11px;line-height:1.3;cursor:pointer}
-.wk-lsn.done{opacity:.5}
-.wk-lsn i{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wk-lsn .wt{font-weight:500;color:var(--ac);font-variant-numeric:tabular-nums;flex-shrink:0}
-.wk-more{font-size:10px;color:var(--tx3);padding-left:2px}
-.wk-empty{font-size:15px;color:var(--tx3);opacity:.4;text-align:center;margin:auto}
-[data-theme=light] .wk-lsn{background:var(--ac);color:#fff}
-[data-theme=light] .wk-lsn .wt,[data-theme=light] .wk-lsn .wn{color:#fff}
-
-/* ---------- avatar ---------- */
-.av{width:38px;height:38px;border-radius:12px;position:relative;overflow:hidden;display:grid;place-items:center;flex-shrink:0;
-  font-weight:600;font-size:13px;color:#fff;letter-spacing:-.3px}
-.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;background:inherit}
-.av-sm{width:31px;height:31px;border-radius:10px;font-size:11px}
-.av-lg{width:54px;height:54px;border-radius:16px;font-size:19px}
-
-/* ---------- students ---------- */
-.s-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:3px}
-.s-card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r2);padding:16px;
-  box-shadow:var(--sh1);text-align:left;width:100%;transition:transform .22s,box-shadow .22s,border-color .22s;
-  animation:rise .36s cubic-bezier(.22,1,.36,1) both}
-.s-card:hover{transform:translateY(-3px);box-shadow:var(--sh2);border-color:var(--line2)}
-.s-top{display:flex;align-items:center;gap:6px}
-.s-top .nm{flex:1;min-width:0}
-.s-top .nm b{display:block;font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.s-card{background:var(--surf);border:1px solid var(--line);border-radius:var(--r2);padding:16px;text-align:left;width:100%;cursor:pointer}
+.s-top{display:flex;align-items:center;gap:8px}
+.s-top .nm{flex:1}
+.s-top .nm b{display:block;font-size:14px}
 .s-top .nm span{font-size:12px;color:var(--tx2)}
 .meter{height:5px;background:var(--surf3);border-radius:9px;overflow:hidden;margin-top:10px}
-.meter i{display:block;height:100%;border-radius:9px}
-.s-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:11.5px;color:var(--tx3)}
+.meter i{display:block;height:100%}
+.s-foot{display:flex;justify-content:space-between;margin-top:6px;font-size:11.5px;color:var(--tx3)}
 
-/* ---------- payments ---------- */
-.pay-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-bottom:10px}
-.pay-row{display:flex;align-items:center;gap:6px;padding:12px;border-radius:var(--r2);background:var(--surf2);
-  margin-bottom:6px;flex-wrap:wrap;animation:rise .34s cubic-bezier(.22,1,.36,1) both}
-.pay-row .b{flex:1;min-width:130px}
-.pay-row .b strong{display:block;font-size:14px;font-weight:600}
-.pay-row .b em{font-style:normal;font-size:12px;color:var(--tx2)}
-.amt{font-size:16px;font-weight:600;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+.av{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:600;font-size:13px;flex-shrink:0;position:relative;overflow:hidden}
+.av-sm{width:31px;height:31px;font-size:11px}
+.av-lg{width:54px;height:54px;font-size:19px}
 
-/* ---------- empty ---------- */
-.empty{text-align:center;padding:30px 20px;color:var(--tx3)}
-.list>.empty{margin:auto}
-.empty .ic{font-size:30px;opacity:.5;margin-bottom:8px}
-.empty b{display:block;font-size:14px;font-weight:600;color:var(--tx2);margin-bottom:4px}
-.empty p{font-size:12.5px;max-width:250px;margin:0 auto}
-
-/* ---------- form ---------- */
-.field{display:block;margin-bottom:8px}
-.field>span{display:block;font-size:12px;font-weight:500;color:var(--tx2);margin-bottom:5px}
-.inp{width:100%;background:var(--surf2);border:1px solid var(--line);border-radius:var(--r3);padding:10px 13px;
-  font-size:13.5px;outline:none;transition:border-color .2s,box-shadow .2s,background .2s}
-.inp:focus{border-color:var(--ac);background:var(--surf);box-shadow:0 0 0 3.5px color-mix(in srgb,var(--ac) 15%,transparent)}
+.field{display:block;margin-bottom:10px}
+.field>span{display:block;font-size:12px;font-weight:500;color:var(--tx2);margin-bottom:4px}
+.inp{width:100%;background:var(--surf2);border:1px solid var(--line);border-radius:11px;padding:10px 13px;outline:none}
 textarea.inp{resize:vertical;min-height:64px}
-select.inp{appearance:none;cursor:pointer;
-  background-image:linear-gradient(45deg,transparent 50%,var(--tx3) 50%),linear-gradient(135deg,var(--tx3) 50%,transparent 50%);
-  background-position:calc(100% - 17px) 51%,calc(100% - 12px) 51%;background-size:5px 5px;background-repeat:no-repeat;
-  padding-right:34px}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:4px}
-input[type=number]{-moz-appearance:textfield;appearance:textfield}
-.num{position:relative;display:block}
-.num>.inp{padding-right:38px}
-.num-s{position:absolute;top:5px;bottom:5px;right:5px;width:26px;display:flex;flex-direction:column;gap:2px}
-.num-s button{flex:1;display:grid;place-items:center;border-radius:6px;color:var(--tx3);font-size:9px;line-height:1;background:var(--surf3)}
-.err{border-color:var(--da)!important}
-.chk-row{display:flex;align-items:flex-start;gap:6px;cursor:pointer;margin-bottom:8px}
-.chk-row>input{position:absolute;opacity:0;width:0;height:0;margin:0}
-.chk-box{flex:none;width:20px;height:20px;margin-top:1px;border-radius:6px;border:1.5px solid var(--line2);
-  background:var(--surf2);display:grid;place-items:center}
-.chk-row>input:checked+.chk-box{background:var(--ac);border-color:var(--ac)}
-.chk-tx{font-size:13.5px;color:var(--tx);line-height:1.35}
-.chk-tx small{display:block;color:var(--tx3);font-size:11.5px;margin-top:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 
-/* ---------- modal ---------- */
-.ov{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;
-  background:color-mix(in srgb,#0b0f19 55%,transparent);backdrop-filter:blur(7px);
-  opacity:0;pointer-events:none;transition:opacity .28s}
+.ov{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.5);backdrop-filter:blur(5px);opacity:0;pointer-events:none;transition:opacity .2s}
 .ov.on{opacity:1;pointer-events:auto}
-.sheet{width:100%;max-width:470px;max-height:88vh;overflow:hidden;background:var(--surf);
-  border:1px solid var(--line);border-radius:24px;box-shadow:var(--sh3);
-  transform:translateY(22px) scale(.96);opacity:0;transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .3s}
-.sheet-lg{max-width:740px!important}
-.sheet-in{max-height:88vh;overflow-y:auto;padding:18px}
-.ov.on .sheet{transform:none;opacity:1}
-.sh-h{display:flex;align-items:flex-start;gap:6px;margin-bottom:12px}
-.sh-h h2{flex:1;font-size:17px;font-weight:600;letter-spacing:-.2px}
-.sh-h p{font-size:12.5px;color:var(--tx2);margin-top:2px}
-.kv{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;
-  border-bottom:1px solid var(--line);font-size:13.5px}
-.kv:last-child{border-bottom:0}
-.kv>span:first-child{color:var(--tx2)}
-.kv>span:last-child{font-weight:500;text-align:right}
-.lab{font-size:11px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 6px}
+.sheet{width:100%;max-width:470px;background:var(--surf);border-radius:20px;padding:20px;box-shadow:var(--sh3)}
+.sh-h{display:flex;align-items:center;margin-bottom:14px}
+.sh-h h2{flex:1;font-size:16px}
+.lab{font-size:11px;font-weight:500;color:var(--tx3);text-transform:uppercase;margin:12px 0 6px}
 
-/* ---------- toast ---------- */
-.toasts{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;
-  display:flex;flex-direction:column;gap:6px;align-items:center;width:max-content;max-width:calc(100vw - 32px)}
-.toast{display:flex;align-items:center;gap:6px;padding:10px 16px;border-radius:13px;background:var(--tx);
-  color:var(--surf);font-size:13px;font-weight:500;box-shadow:var(--sh3);
-  animation:tin .34s cubic-bezier(.22,1,.36,1) both}
-.toast.out{animation:tout .26s ease forwards}
-.toast i{width:7px;height:7px;border-radius:50%;background:var(--ok);flex-shrink:0}
-.toast.bad i{background:var(--da)}
-@keyframes tin{from{opacity:0;transform:translateY(16px) scale(.94)}to{opacity:1;transform:none}}
-@keyframes tout{to{opacity:0;transform:translateY(10px) scale(.96)}}
-
-/* ---------- context menu ---------- */
-.ctx{position:fixed;z-index:150;min-width:196px;max-width:250px;padding:6px;background:var(--surf);
-  border:1px solid var(--line);border-radius:15px;box-shadow:var(--sh3);
-  opacity:0;transform:scale(.95);transform-origin:top left;pointer-events:none;
-  transition:opacity .15s ease,transform .16s cubic-bezier(.22,1,.36,1)}
-.ctx.on{opacity:1;transform:none;pointer-events:auto}
-.ctx-head{display:flex;align-items:center;gap:6px;padding:6px 9px 7px;
-  border-bottom:1px solid var(--line);margin-bottom:3px}
-.ctx-head .nm{font-size:12.5px;font-weight:600;color:var(--tx);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ctx-item{display:flex;align-items:center;gap:7px;width:100%;padding:7px 10px;border-radius:9px;
-  font-size:13px;font-weight:400;color:var(--tx);text-align:left;transition:background .13s}
-.ctx-item:hover{background:var(--surf2)}
-.ctx-item .ci{width:16px;text-align:center;font-size:13px;color:var(--tx3);flex-shrink:0}
-.ctx-item.danger{color:var(--da)}
-.ctx-item.danger:hover{background:var(--das)}
-.ctx-sep{height:1px;background:var(--line);margin:4px 6px}
+.toasts{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 16px;border-radius:11px;background:var(--tx);color:var(--surf);font-size:13px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div id="payday-banner" aria-live="polite"></div>
-
   <div class="tabbar">
     <div class="top-brand">
-      <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3 1 9l11 6 9-4.91V17h2V9L12 3z"/></svg></div>
-      <div class="brand">
-        <h1>LogoBoard</h1>
-        <p>Кабінет логопеда</p>
-      </div>
+      <div class="mark">Л</div>
+      <div class="brand"><h1>LogoBoard</h1><p>Кабінет логопеда</p></div>
     </div>
     <div class="top-act-top">
-      <span id="auth-av" data-auth="in" title="Увійти" aria-label="Акаунт">👤</span>
+      <span id="auth-av" title="Увійти">👤</span>
     </div>
-    <div class="tabs" role="tablist" aria-label="Розділи">
-      <span class="pill" id="pill" aria-hidden="true"></span>
-      <button class="tab" role="tab" data-tab="students" aria-controls="v-students">Клієнти</button>
-      <button class="tab on" role="tab" data-tab="schedule" aria-controls="v-schedule" aria-selected="true">Розклад</button>
-      <button class="tab" role="tab" data-tab="payments" aria-controls="v-payments">Оплати</button>
+    <div class="tabs">
+      <button class="tab" data-tab="students">Клієнти</button>
+      <button class="tab on" data-tab="schedule">Розклад</button>
+      <button class="tab" data-tab="payments">Оплати</button>
     </div>
-    <div class="cal-switch" id="cal-switch" role="tablist" aria-label="Вигляд календаря">
-      <button class="cal-seg on" id="view-month" role="tab" aria-selected="true">▦ Місяць</button>
-      <button class="cal-seg" id="view-week" role="tab" aria-selected="false">▤ Тиждень</button>
+    <div class="cal-switch" id="cal-switch">
+      <button class="cal-seg on" id="view-month">Місяць</button>
+      <button class="cal-seg" id="view-week">Тиждень</button>
     </div>
   </div>
 
-  <section class="view" id="v-students" role="tabpanel" aria-label="Клієнти">
-    <div class="card" style="min-height: 480px; display: flex; flex-direction: column;">
-      <div class="card-h" style="margin-bottom:12px">
-        <h2>Клієнти (вихованці)</h2>
-        <button class="btn btn-sm" style="margin-left:auto" data-open="student">＋ Додати клієнта</button>
-      </div>
+  <section class="view" id="v-students">
+    <div class="card">
+      <div class="card-h"><h2>Клієнти</h2><button class="btn btn-sm" style="margin-left:auto" data-open="student">＋ Додати клієнта</button></div>
       <div class="s-grid" id="s-grid"></div>
     </div>
   </section>
 
-  <section class="view on" id="v-schedule" role="tabpanel" aria-label="Розклад">
+  <section class="view on" id="v-schedule">
     <div class="sched" id="sched">
       <div class="card cal-month">
         <div class="card-h"><h2>Календар</h2><span class="sub" id="cal-count"></span></div>
         <div class="cal-nav">
-          <button class="arw" id="prev" aria-label="Попередній місяць">‹</button>
+          <button class="arw" id="prev">‹</button>
           <span class="m" id="cal-m"></span>
-          <button class="arw" id="next" aria-label="Наступний місяць">›</button>
+          <button class="arw" id="next">›</button>
         </div>
         <div class="dow"><div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Нд</div></div>
         <div class="grid" id="grid"></div>
-        <div class="cal-legend">
-          <span><i style="background:var(--acs);box-shadow:inset 0 0 0 1px var(--ac)"></i>Є заняття</span>
-          <span><i style="box-shadow:inset 0 0 0 1.5px var(--ac)"></i>Сьогодні</span>
-          <span><i style="background:var(--ac)"></i>Обрано</span>
-        </div>
-        <button class="cal-add" data-open="lesson" aria-label="Додати заняття" title="Додати заняття"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg></button>
-      </div>
-      <div class="card cal-week">
-        <div class="wk-top">
-          <b>Тиждень</b>
-          <span class="wk-range" id="wk-range"></span>
-          <div class="wk-nav">
-            <button class="arw" id="wk-prev" aria-label="Попередній тиждень">‹</button>
-            <button class="arw" id="wk-next" aria-label="Наступний тиждень">›</button>
-          </div>
-        </div>
-        <div class="week" id="week"></div>
+        <button class="cal-add" data-open="lesson">＋</button>
       </div>
       <div class="card">
-        <div class="day-head">
-          <b id="day-t">Заняття на день</b>
-          <span id="day-s"></span>
-        </div>
+        <div class="card-h"><h2 id="day-t">Заняття</h2><span class="sub" id="day-s"></span></div>
         <div class="list" id="day-list"></div>
-        <button class="btn btn-soft btn-block btn-sm" id="add-here" style="margin-top:14px;flex-shrink:0">＋ Додати заняття на цей день</button>
+        <button class="btn btn-soft btn-block btn-sm" id="add-here" style="margin-top:14px">＋ Додати заняття на цей день</button>
       </div>
     </div>
   </section>
 
-  <section class="view" id="v-payments" role="tabpanel" aria-label="Оплати">
-    <div class="pay-sum" id="pay-sum"></div>
+  <section class="view" id="v-payments">
     <div class="card">
-      <div class="card-h"><h2>Нагадування про оплату</h2></div>
+      <div class="card-h"><h2>Оплати та борги</h2></div>
       <div id="pay-list"></div>
     </div>
   </section>
 
-  <section class="stats" id="stats" aria-label="Зведення"></section>
+  <section class="stats" id="stats"></section>
 </div>
 
-<div class="ov" id="ov" role="dialog" aria-modal="true">
-  <div class="sheet" id="sheet"><div class="sheet-in" id="sheet-in"></div></div>
-</div>
-<div class="ctx" id="ctx" role="menu" aria-hidden="true"></div>
-<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="ov" id="ov"><div class="sheet" id="sheet-in"></div></div>
+<div class="toasts" id="toasts"></div>
 
 <script>
 'use strict';
 const PALETTE=['#4f46e5','#e11d48','#0d9488','#d97706','#7c3aed','#0284c7','#db2777','#16a34a'];
 const MONTHS=['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
 const WD=['неділя','понеділок','вівторок','середа','четвер','п’ятниця','субота'];
-const WDACC=['неділю','понеділок','вівторок','середу','четвер','п’ятницю','суботу'];
 
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const TODAY=iso(new Date());
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=s=>document.querySelector(s);
-const plural=(n,a,b,c)=>{const m=n%100,u=n%10;return m>=11&&m<=14?c:u===1?a:u>=2&&u<=4?b:c;};
-const nLesson=n=>plural(n,'заняття','заняття','занять');
 const money=n=>n.toLocaleString('uk-UA')+' грн';
 const fmtDate=s=>{const[y,m,d]=s.split('-').map(Number);return `${d} ${MONTHS[m-1]}`;};
-const wdOf=s=>{const[y,m,d]=s.split('-').map(Number);return WD[new Date(y,m-1,d).getDay()];};
 
 const load=(k,f)=>{try{const v=JSON.parse(localStorage.getItem(k));return Array.isArray(v)?v:f;}catch{return f;}};
 let students=load('tb_students',[]);
 let lessons=load('tb_lessons',[]);
 let series=load('tb_series',[]);
 
-let _idSeq=Math.max(Date.now(),...students.map(s=>s.id||0),...lessons.map(l=>l.id||0),0);
-const uid=()=>++_idSeq;
-
 function save(){
   try{
     localStorage.setItem('tb_students',JSON.stringify(students));
     localStorage.setItem('tb_lessons',JSON.stringify(lessons));
     localStorage.setItem('tb_series',JSON.stringify(series));
-  }catch{toast('Не вдалося зберегти дані',1);}
+  }catch{}
   window._fbAuth?.save(students,lessons,series);
 }
 
-let _syncCount=0;
 window._tb={
   students,lessons,series,
-  syncStart(){_syncCount++;$('#auth-av')?.classList.add('syncing');},
-  syncEnd(){_syncCount=Math.max(0,_syncCount-1);if(!_syncCount)$('#auth-av')?.classList.remove('syncing');},
-  applySettings(st){
-    if(!st)return;
-    if(st.theme){localStorage.setItem('tb_theme',st.theme);applyTheme(st.theme);}
-    if(st.calView)applyCalView(st.calView);
-  },
   afterLoad(){
     students=window._tb.students; lessons=window._tb.lessons; series=window._tb.series;
-    _idSeq=Math.max(_idSeq,...students.map(s=>s.id||0),...lessons.map(l=>l.id||0),0);
     save(); render();
   }
 };
 
 let tab='schedule';
-let calView=localStorage.getItem('tb_calview')==='week'?'week':'month';
 let cursor=new Date();
 let picked=TODAY;
-let lastFocus=null;
 
 const getS=id=>students.find(s=>s.id===id);
-const lessonsOf=id=>lessons.filter(l=>l.studentId===id).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+const lessonsOf=id=>lessons.filter(l=>l.studentId===id);
 const onDay=d=>lessons.filter(l=>l.date===d).sort((a,b)=>a.time.localeCompare(b.time));
-const unpaidOf=id=>lessonsOf(id).filter(l=>!l.paid);
-
-function status(s){
-  const due=unpaidOf(s.id).filter(l=>l.date<=TODAY).length;
-  const every=Math.max(1,s.payEvery||1);
-  if(due>=every)return 'due';
-  if(due>=every-1&&due>0)return 'soon';
-  return 'ok';
-}
-const CHIP={due:'<span class="chip chip-da">Борг</span>',soon:'<span class="chip chip-wa">Скоро оплата</span>',ok:'<span class="chip chip-ok">Оплачено</span>'};
-const KC={due:'var(--da)',soon:'var(--wa)',ok:'var(--ok)'};
 const initials=n=>n.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?';
-const avatar=(s,cls='')=>`<span class="av ${cls}" data-student-av="${s.id}" title="${esc(s.name)}" style="background:${s.color}">${esc(initials(s.name))}${s.photo?`<img src="${esc(s.photo)}" alt="" loading="lazy" onerror="this.remove()">`:''}</span>`;
+const avatar=(s,cls='')=>`<span class="av ${cls}" data-student-av="${s.id}" style="background:${s.color}">${esc(initials(s.name))}</span>`;
 
-function seriesHorizon(){
-  const t=new Date();t.setHours(0,0,0,0);t.setDate(t.getDate()+16*7);
-  const cm=new Date(cursor.getFullYear(),cursor.getMonth()+1,7);
-  const pw=new Date(picked+'T00:00:00');pw.setDate(pw.getDate()+14);
-  return iso(new Date(Math.max(t.getTime(),cm.getTime(),pw.getTime())));
-}
-function materializeSeries(){
-  if(!series.length)return 0;
-  const hor=seriesHorizon();
-  let added=0;
-  series.forEach(se=>{
-    if(!getS(se.studentId))return;
-    const skips=se.skips||[];
-    const have=new Set(lessons.filter(l=>l.seriesId===se.id).map(l=>l.date));
-    for(let dt=new Date(se.start+'T00:00:00');iso(dt)<=hor;dt.setDate(dt.getDate()+7)){
-      const ds=iso(dt);
-      if(se.until&&ds>=se.until)break;
-      if(have.has(ds)||skips.includes(ds))continue;
-      lessons.push({id:uid(),studentId:se.studentId,date:ds,time:se.time,topic:se.topic,note:se.note||'',paid:false,seriesId:se.id});
-      added++;
-    }
-  });
-  if(added)save();
-  return added;
-}
-
-function toast(msg,bad){
-  const t=document.createElement('div');
-  t.className='toast'+(bad?' bad':'');
-  t.innerHTML=`<i></i><span>${esc(msg)}</span>`;
-  $('#toasts').appendChild(t);
-  setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),260);},2400);
-}
-
-const applyTheme=t=>{document.documentElement.dataset.theme=t;};
-applyTheme(localStorage.getItem('tb_theme')||'light');
-function toggleTheme(){
-  const t=document.documentElement.dataset.theme==='dark'?'light':'dark';
-  applyTheme(t); localStorage.setItem('tb_theme',t);
-  window._fbAuth?.saveSettings?.();
+function toast(msg){
+  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  $('#toasts').appendChild(t); setTimeout(()=>t.remove(),2500);
 }
 
 function renderStats(){
   const mo=TODAY.slice(0,7);
-  const moLessons=lessons.filter(l=>l.date.startsWith(mo));
-  const earned=moLessons.filter(l=>l.paid).reduce((a,l)=>a+(getS(l.studentId)?.price||0),0);
-
-  const comboCard=`<button class="stat" data-goto="students"><b>${students.length}</b><span>Активних клієнтів</span><b style="color:var(--tx2);margin-top:8px">${moLessons.length}</b><span>Занять цього місяця</span></button>`;
-  const earnedCard=`<button class="stat" data-goto="payments"><b>${money(earned)}</b><span>Отримано за місяць</span></button>`;
-  
-  $('#stats').innerHTML=comboCard+earnedCard;
+  const earned=lessons.filter(l=>l.date.startsWith(mo)&&l.paid).reduce((a,l)=>a+(getS(l.studentId)?.price||0),0);
+  $('#stats').innerHTML=`
+    <button class="stat" data-goto="students"><b>${students.length}</b><span>Активних клієнтів</span></button>
+    <button class="stat" data-goto="payments"><b>${money(earned)}</b><span>Отримано за місяць</span></button>`;
 }
 
 function renderStudents(){
   const el=$('#s-grid');
-  if(!students.length){
-    el.innerHTML=`<div class="card empty"><div class="ic">☺</div><b>Ще немає клієнтів</b><p>Додайте першого клієнта, щоб вести картки та розклад.</p></div>`;
-    return;
-  }
-  el.innerHTML=students.map((s,i)=>{
-    const all=lessonsOf(s.id),paid=all.filter(l=>l.paid).length;
-    const pct=all.length?Math.round(paid/all.length*100):0;
-    const st=status(s);
-    return `<button class="s-card" data-student="${s.id}" style="animation-delay:${i*45}ms">
-      <div class="s-top">
-        ${avatar(s)}
-        <span class="nm"><b>${esc(s.name)}</b><span>${esc(s.subject||'Логопедія')} · ${money(s.price||0)}</span></span>
-        ${CHIP[st]}
-      </div>
-      <div class="meter"><i style="width:${pct}%;background:${s.color}"></i></div>
-      <div class="s-foot"><span>Оплачено ${paid} з ${all.length} ${nLesson(all.length)}</span><span>${pct}%</span></div>
-    </button>`;
-  }).join('');
+  if(!students.length){el.innerHTML=`<div style="grid-column:1/-1;text-align:center;color:var(--tx3);padding:30px">Ще немає клієнтів</div>`;return;}
+  el.innerHTML=students.map(s=>`
+    <button class="s-card" data-student="${s.id}">
+      <div class="s-top">${avatar(s)}<span class="nm"><b>${esc(s.name)}</b><span>${esc(s.subject||'Логопедія')} · ${money(s.price||0)}</span></span></div>
+    </button>`).join('');
 }
 
 function renderCalendar(){
   const y=cursor.getFullYear(),m=cursor.getMonth();
   $('#cal-m').textContent=new Date(y,m).toLocaleDateString('uk-UA',{month:'long',year:'numeric'});
   const mo=`${y}-${String(m+1).padStart(2,'0')}`;
-  const n=lessons.filter(l=>l.date.startsWith(mo)).length;
-  $('#cal-count').textContent=n?`${n} ${nLesson(n)}`:'';
   const first=new Date(y,m,1).getDay(),pad=first===0?6:first-1;
   const days=new Date(y,m+1,0).getDate();
   let h='';
@@ -756,10 +335,8 @@ function renderCalendar(){
   for(let d=1;d<=days;d++){
     const ds=`${mo}-${String(d).padStart(2,'0')}`;
     const cnt=lessons.filter(l=>l.date===ds).length;
-    const dw=new Date(y,m,d).getDay();
-    const cls=['day',cnt&&'has',ds===TODAY&&'today',ds===picked&&'sel',(dw===0||dw===6)&&'wknd'].filter(Boolean).join(' ');
-    const dots=cnt?`<span class="dots">${'<i class="dot"></i>'.repeat(Math.min(cnt,3))}</span>`:'';
-    h+=`<button class="${cls}" data-date="${ds}">${d}${dots}</button>`;
+    const cls=['day',cnt&&'has',ds===TODAY&&'today',ds===picked&&'sel'].filter(Boolean).join(' ');
+    h+=`<button class="${cls}" data-date="${ds}">${d}</button>`;
   }
   $('#grid').innerHTML=h;
 }
@@ -767,217 +344,125 @@ function renderCalendar(){
 function renderDay(){
   const items=onDay(picked);
   $('#day-t').textContent=picked===TODAY?'Сьогодні':fmtDate(picked);
-  $('#day-s').textContent=`${wdOf(picked)}${items.length?` · ${items.length} ${nLesson(items.length)}`:''}`;
+  $('#day-s').textContent=WD[new Date(picked+'T00:00:00').getDay()];
   const el=$('#day-list');
-  if(!items.length){
-    el.innerHTML=`<div class="empty"><div class="ic">◔</div><b>Вільний день</b><p>На ${fmtDate(picked)} занять не заплановано.</p></div>`;
-    return;
-  }
-  el.innerHTML=items.map((l,i)=>{
-    const s=getS(l.studentId);
-    if(!s)return '';
-    return `<div class="lsn ${l.paid?'done':''}" data-lesson="${l.id}" style="animation-delay:${i*50}ms">
-      <span class="t" data-edit-time="${l.id}">${esc(l.time)}</span>
+  if(!items.length){el.innerHTML=`<div style="text-align:center;color:var(--tx3);padding:20px">Немає занять</div>`;return;}
+  el.innerHTML=items.map(l=>{
+    const s=getS(l.studentId); if(!s)return '';
+    return `<div class="lsn">
+      <span class="t">${esc(l.time)}</span>
       ${avatar(s,'av-sm')}
-      <span class="b"><strong data-student="${s.id}">${esc(s.name)}</strong><em>${esc(l.topic||'Заняття')}</em>${l.note?`<em class="n">${esc(l.note)}</em>`:''}</span>
+      <span class="b"><strong>${esc(s.name)}</strong><em>${esc(l.topic||'Заняття')}</em></span>
       <button class="chip ${l.paid?'chip-ok':'chip-n'}" data-toggle="${l.id}">${l.paid?'Оплачено':'Не оплачено'}</button>
       <button class="x" data-del="${l.id}">×</button>
     </div>`;
   }).join('');
 }
 
-const WDS=['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
-function mondayOf(isoStr){
-  const[y,m,d]=isoStr.split('-').map(Number);
-  const dt=new Date(y,m-1,d);
-  dt.setDate(dt.getDate()-((dt.getDay()+6)%7));
-  return dt;
-}
-function renderWeek(){
-  const mon=mondayOf(picked);
-  const days=[];
-  for(let i=0;i<7;i++){const dt=new Date(mon);dt.setDate(mon.getDate()+i);days.push(dt);}
-  const a=days[0],b=days[6];
-  $('#wk-range').textContent=a.getMonth()===b.getMonth()?`${a.getDate()}–${b.getDate()} ${MONTHS[b.getMonth()]}`:`${a.getDate()} ${MONTHS[a.getMonth()]} – ${b.getDate()} ${MONTHS[b.getMonth()]}`;
-  $('#week').innerHTML=days.map((dt,i)=>{
-    const ds=iso(dt),items=onDay(ds);
-    const cls=['wk-col',i>=5&&'wknd',ds===TODAY&&'today',ds===picked&&'sel'].filter(Boolean).join(' ');
-    const rows=items.slice(0,3).map(l=>{
-      const s=getS(l.studentId);
-      return `<span class="wk-lsn ${l.paid?'done':''}" data-lesson="${l.id}"><i class="wt">${esc(l.time)}</i><i class="wn">${esc(s?.name||'')}</i></span>`;
-    }).join('');
-    const body=items.length?rows:`<span class="wk-empty">·</span>`;
-    return `<button class="${cls}" data-week-day="${ds}"><span class="wk-h"><span class="wk-wd">${WDS[i]}</span><span class="wk-d">${dt.getDate()}</span></span><span class="wk-body">${body}</span></button>`;
-  }).join('');
-}
-function selectDay(ds){picked=ds;materializeSeries();renderCalendar();renderDay();renderWeek();}
-function shiftWeek(d){
-  const dt=new Date(picked+'T00:00:00'); dt.setDate(dt.getDate()+d*7);
-  if(dt.getMonth()!==cursor.getMonth()||dt.getFullYear()!==cursor.getFullYear())cursor=new Date(dt);
-  selectDay(iso(dt));
-}
-
 function renderPayments(){
-  const rows=students.map(s=>{
-    const due=unpaidOf(s.id).filter(l=>l.date<=TODAY);
-    return {s,st:status(s),cnt:due.length,sum:due.length*(s.price||0)};
-  });
-  const owed=rows.reduce((a,r)=>a+r.sum,0);
-  $('#pay-sum').innerHTML=[['До сплати',money(owed),'var(--da)'],['Боржників',rows.filter(r=>r.st==='due').length,'var(--wa)'],['Без боргів',rows.filter(r=>r.st==='ok').length,'var(--ok)']].map(([l,v,k])=>`<div class="stat" style="--k:${k}"><b>${esc(v)}</b><span>${l}</span></div>`).join('');
-
-  const pend=rows.filter(r=>r.st!=='ok');
   const el=$('#pay-list');
-  if(!pend.length){
-    el.innerHTML=`<div class="empty"><div class="ic">✓</div><b>Усе оплачено</b><p>Наразі жоден клієнт не має заборгованості.</p></div>`;
-    return;
-  }
-  el.innerHTML=pend.map((r,i)=>`
-    <div class="pay-row" data-student="${r.s.id}" style="animation-delay:${i*50}ms">
-      ${avatar(r.s,'av-sm')}
-      <span class="b"><strong>${esc(r.s.name)}</strong><em>${r.cnt} ${nLesson(r.cnt)} без оплати</em></span>
-      <span class="amt">${money(r.sum)}</span>
-      <button class="btn btn-ok btn-sm" data-pay="${r.s.id}">Прийняти оплату</button>
-    </div>`).join('');
+  const unpaid=lessons.filter(l=>!l.paid);
+  if(!unpaid.length){el.innerHTML=`<div style="text-align:center;color:var(--tx3);padding:30px">Усі заняття оплачено</div>`;return;}
+  el.innerHTML=unpaid.map(l=>{
+    const s=getS(l.studentId); if(!s)return '';
+    return `<div class="lsn">
+      <span class="t">${esc(l.date)}</span>
+      <span class="b"><strong>${esc(s.name)}</strong><em>${money(s.price||0)}</em></span>
+      <button class="btn btn-ok btn-sm" data-pay="${l.id}">Оплачено</button>
+    </div>`;
+  }).join('');
 }
 
 function render(){
-  materializeSeries(); renderStats();
+  renderStats();
   if(tab==='students')renderStudents();
-  if(tab==='schedule'){renderCalendar();renderDay();renderWeek();}
+  if(tab==='schedule'){renderCalendar();renderDay();}
   if(tab==='payments')renderPayments();
-}
-
-function applyCalView(v){
-  calView=v==='week'?'week':'month';
-  $('#sched').classList.toggle('week-mode',calView==='week');
-  document.querySelectorAll('.cal-seg').forEach(b=>b.classList.toggle('on',b.id==='view-'+calView));
-  localStorage.setItem('tb_calview',calView);
 }
 
 function switchTab(name){
   tab=name;
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===name));
-  $('#cal-switch').classList.toggle('hide',name!=='schedule');
-  const v=$('#v-'+name); v.classList.remove('on'); void v.offsetWidth; v.classList.add('on');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  $('#v-'+name).classList.add('on');
   render();
 }
 
-function openSheet(html){
-  $('#sheet-in').innerHTML=html; $('#sheet-in').scrollTop=0;
-  $('#ov').classList.add('on'); document.body.style.overflow='hidden';
-}
-function closeSheet(){
-  $('#ov').classList.remove('on'); document.body.style.overflow='';
-}
-const shHead=(title,sub)=>`<div class="sh-h"><div style="flex:1"><h2>${esc(title)}</h2>${sub?`<p>${esc(sub)}</p>`:''}</div><button class="btn-ico" data-close>×</button></div>`;
+function openSheet(html){$('#sheet-in').innerHTML=html;$('#ov').classList.add('on');}
+function closeSheet(){$('#ov').classList.remove('on');}
 
 function studentForm(id){
   const s=id?getS(id):null;
-  openSheet(`${shHead(s?'Редагувати клієнта':'Новий клієнт',s?s.subject:'Введіть дані вихованця')}
-    <label class="field"><span>Ім'я та Прізвище (дитини / батьків) *</span><input class="inp" id="f-name" value="${esc(s?.name||'')}" placeholder="Максим Коваленко"></label>
-    <div class="row2">
-      <label class="field"><span>Напрямок / Звуки</span><input class="inp" id="f-subj" value="${esc(s?.subject||'Логопедія')}"></label>
-      <label class="field"><span>Телефон</span><input class="inp" id="f-phone" value="${esc(s?.phone||'')}"></label>
-    </div>
-    <div class="row2">
-      <label class="field"><span>Ціна занять, грн</span><span class="num"><input class="inp" id="f-price" type="number" value="${s?.price??350}"></span></label>
-      <label class="field"><span>Оплата кожні N занять</span><span class="num"><input class="inp" id="f-every" type="number" value="${s?.payEvery??1}"></span></label>
-    </div>
-    <label class="field"><span>Логопедичний висновок та нотатки (етапи постановки звуків)</span><textarea class="inp" id="f-notes" placeholder="Дислалія, постановка звука [р]...">${esc(s?.notes||'')}</textarea></label>
-    <button class="btn btn-block" id="f-save">${s?'Зберегти зміни':'Додати клієнта'}</button>`);
-
+  openSheet(`
+    <div class="sh-h"><h2>${s?'Редагувати клієнта':'Новий клієнт'}</h2><button class="x" data-close>×</button></div>
+    <label class="field"><span>Ім'я *</span><input class="inp" id="f-name" value="${esc(s?.name||'')}"></label>
+    <label class="field"><span>Ціна заняття, грн</span><input class="inp" id="f-price" type="number" value="${s?.price??350}"></label>
+    <label class="field"><span>Примітки (висновок)</span><textarea class="inp" id="f-notes">${esc(s?.notes||'')}</textarea></label>
+    <button class="btn btn-block" id="f-save">Зберегти</button>`);
   $('#f-save').onclick=()=>{
-    const name=$('#f-name').value.trim();
-    if(!name)return toast("Вкажіть ім'я",1);
-    const data={
-      name, subject:$('#f-subj').value.trim(), phone:$('#f-phone').value.trim(),
-      price:Math.max(0,parseInt($('#f-price').value,10)||0),
-      payEvery:Math.max(1,parseInt($('#f-every').value,10)||1),
-      notes:$('#f-notes').value.trim()
-    };
+    const name=$('#f-name').value.trim(); if(!name)return toast("Вкажіть ім'я");
+    const data={name, price:Number($('#f-price').value)||0, notes:$('#f-notes').value.trim()};
     if(s)Object.assign(s,data);
     else students.push({id:Date.now(),...data,color:PALETTE[students.length%PALETTE.length]});
-    save(); closeSheet(); render(); toast(s?'Збережено':'Клієнта додано');
-  };
-}
-
-function lessonForm(date,preStudent){
-  if(!students.length)return studentForm();
-  openSheet(`${shHead('Нове заняття','Оберіть клієнта та час')}
-    <label class="field"><span>Клієнт</span><select class="inp" id="l-s">${students.map(s=>`<option value="${s.id}"${s.id===preStudent?' selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
-    <div class="row2">
-      <label class="field"><span>Дата</span><input class="inp" id="l-d" type="date" value="${date||picked}"></label>
-      <label class="field"><span>Час</span><input class="inp" id="l-t" type="time" value="15:00"></label>
-    </div>
-    <label class="field"><span>Тема / Артикуляційна вправа</span><input class="inp" id="l-top" placeholder="Постановка звука [с]"></label>
-    <label class="field"><span>Домашнє завдання для батьків</span><textarea class="inp" id="l-note" style="min-height:56px"></textarea></label>
-    <button class="btn btn-block" id="l-save">Додати заняття</button>`);
-
-  $('#l-save').onclick=()=>{
-    const d=$('#l-d').value;
-    lessons.push({id:uid(),studentId:Number($('#l-s').value),date:d,time:$('#l-t').value||'15:00',topic:$('#l-top').value.trim(),note:$('#l-note').value.trim(),paid:false});
-    save(); picked=d; cursor=new Date(d+'T00:00:00'); closeSheet(); render(); toast('Заняття додано');
+    save(); closeSheet(); render(); toast('Збережено');
   };
 }
 
 function studentSheet(id){
   const s=getS(id); if(!s)return;
-  const all=lessonsOf(id);
-  const rows=all.slice().reverse().map(l=>`
-    <div class="lsn ${l.paid?'done':''}">
-      <span class="t">${esc(fmtDate(l.date))}</span>
-      <span class="b"><strong>${esc(l.topic||'Заняття')}</strong><em>${esc(l.time)}</em></span>
-      <button class="chip ${l.paid?'chip-ok':'chip-n'}" data-toggle="${l.id}">${l.paid?'Оплачено':'Не оплачено'}</button>
-      <button class="x" data-del="${l.id}">×</button>
-    </div>`).join('')||'<div class="empty" style="padding:24px"><b>Занять ще немає</b></div>';
-
   openSheet(`
-    <div class="sh-h">
-      ${avatar(s,'av-lg')}
-      <div style="flex:1"><h2>${esc(s.name)}</h2><p>${esc(s.subject||'')} · ${money(s.price||0)}</p></div>
-      <button class="btn-ico" data-close>×</button>
-    </div>
-    <div class="lab">Логопедична карта / Нотатки</div>
-    <textarea class="inp" id="d-notes" placeholder="Примітки...">${esc(s.notes||'')}</textarea>
-    <div class="lab">Історія занять</div>
-    <div class="list" style="max-height:220px">${rows}</div>
-    <div style="display:flex;gap:9px;margin-top:18px">
-      <button class="btn btn-ok btn-sm" style="flex:1" data-pay="${s.id}">Прийняти оплату</button>
-      <button class="btn btn-soft btn-sm" id="d-edit">Редагувати</button>
+    <div class="sh-h">${avatar(s,'av-lg')}<div style="margin-left:10px"><h2>${esc(s.name)}</h2><span>${money(s.price||0)}</span></div><button class="x" data-close>×</button></div>
+    <div class="lab">Примітки</div><p style="font-size:13px;color:var(--tx2);margin-bottom:14px">${esc(s.notes||'Немає нотаток')}</p>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-soft btn-sm" id="d-edit" style="flex:1">Редагувати</button>
+      <button class="btn btn-da btn-sm" id="d-del" style="flex:1">Видалити клієнта</button>
     </div>`);
-
-  $('#d-notes').onblur=e=>{s.notes=e.target.value.trim();save();toast('Збережено');};
-  $('#d-edit').onclick=()=>studentForm(s.id);
+  $('#d-edit').onclick=()=>studentForm(id);
+  $('#d-del').onclick=()=>{
+    if(confirm('Видалити цього клієнта та його заняття?')){
+      students=students.filter(x=>x.id!==id);
+      lessons=lessons.filter(l=>l.studentId!==id);
+      save(); closeSheet(); render(); toast('Клієнта видалено');
+    }
+  };
 }
 
-function acceptPayment(sid){
-  const due=unpaidOf(sid);
-  if(!due.length)return toast('Немає неоплачених занять',1);
-  due[0].paid=true; save(); render();
-  if($('#ov').classList.contains('on'))studentSheet(sid);
-  toast('Оплату зараховано');
-}
-
-function toggleLesson(lid){
-  const l=lessons.find(x=>x.id===lid); if(!l)return;
-  l.paid=!l.paid; save(); render();
-  if($('#ov').classList.contains('on'))studentSheet(l.studentId);
+function lessonForm(){
+  if(!students.length)return studentForm();
+  openSheet(`
+    <div class="sh-h"><h2>Нове заняття</h2><button class="x" data-close>×</button></div>
+    <label class="field"><span>Клієнт</span><select class="inp" id="l-s">${students.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label>
+    <div class="row2">
+      <label class="field"><span>Дата</span><input class="inp" id="l-d" type="date" value="${picked}"></label>
+      <label class="field"><span>Час</span><input class="inp" id="l-t" type="time" value="15:00"></label>
+    </div>
+    <label class="field"><span>Тема</span><input class="inp" id="l-top" placeholder="Постановка звука"></label>
+    <button class="btn btn-block" id="l-save">Додати</button>`);
+  $('#l-save').onclick=()=>{
+    lessons.push({id:Date.now(), studentId:Number($('#l-s').value), date:$('#l-d').value, time:$('#l-t').value, topic:$('#l-top').value.trim(), paid:false});
+    save(); closeSheet(); render(); toast('Заняття додано');
+  };
 }
 
 document.addEventListener('click',e=>{
   const t=e.target;
   if(t.closest('.tab'))return switchTab(t.closest('.tab').dataset.tab);
-  if(t.closest('.cal-seg'))return applyCalView(t.closest('.cal-seg').id==='view-week'?'week':'month');
   if(t.closest('[data-goto]'))return switchTab(t.closest('[data-goto]').dataset.goto);
-  if(t.closest('.day[data-date]'))return selectDay(t.closest('.day[data-date]').dataset.date);
+  if(t.closest('.day[data-date]')){picked=t.closest('.day[data-date]').dataset.date;renderDay();renderCalendar();}
   if(t.closest('[data-open]'))return t.closest('[data-open]').dataset.open==='student'?studentForm():lessonForm();
-  if(t.closest('[data-toggle]'))return toggleLesson(Number(t.closest('[data-toggle]').dataset.toggle));
-  if(t.closest('[data-pay]'))return acceptPayment(Number(t.closest('[data-pay]').dataset.pay));
+  if(t.closest('[data-toggle]')){const l=lessons.find(x=>x.id==t.dataset.toggle);if(l){l.paid=!l.paid;save();render();}}
+  if(t.closest('[data-pay]')){const l=lessons.find(x=>x.id==t.dataset.pay);if(l){l.paid=true;save();render();}}
+  if(t.closest('[data-del]')){const id=Number(t.dataset.del);lessons=lessons.filter(x=>x.id!==id);save();render();toast('Заняття видалено');}
   if(t.closest('.s-card'))return studentSheet(Number(t.closest('.s-card').dataset.student));
-  if(t.closest('[data-close]'))return closeSheet();
+  if(t.closest('#auth-av')){
+    const authAv=t.closest('#auth-av');
+    if(authAv.dataset.auth==='out')window._fbAuth?.logout();
+    else window._fbAuth?.login();
+  }
+  if(t.closest('[data-close]')||t.classList.contains('ov'))return closeSheet();
 });
 
-render();
+switchTab('schedule');
 </script>
 </body>
 </html>
